@@ -43,7 +43,6 @@ public class UserController {
             User existingUser = user.get();
             existingUser.setFirstName(userDetails.getFirstName());
             existingUser.setLastName(userDetails.getLastName());
-            existingUser.setEmail(userDetails.getEmail());
             existingUser.setPhoneNumber(userDetails.getPhoneNumber());
             existingUser.setAddress(userDetails.getAddress());
             existingUser.setDateOfBirth(userDetails.getDateOfBirth());
@@ -63,4 +62,6 @@ public class UserController {
         }
         return ResponseEntity.notFound().build();
     }
+    
+
 }

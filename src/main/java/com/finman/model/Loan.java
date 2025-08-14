@@ -1,5 +1,6 @@
 package com.finman.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.finman.model.enums.LoanStatus;
 import com.finman.model.enums.PaymentFrequency;
 import jakarta.persistence.*;
@@ -19,6 +20,7 @@ public class Loan {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
     
     @Column(name = "loan_amount", nullable = false, precision = 18, scale = 2)
@@ -49,6 +51,7 @@ public class Loan {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by_user_id")
+    @JsonIgnore
     private User approvedByUser;
     
     @Column(name = "disbursement_date")
@@ -68,9 +71,11 @@ public class Loan {
     
     // Relacionamentos
     @OneToMany(mappedBy = "loan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<LoanInstallment> installments = new ArrayList<>();
     
     @OneToMany(mappedBy = "loan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Transaction> transactions = new ArrayList<>();
     
     // Construtores
@@ -247,6 +252,17 @@ public class Loan {
     public void activate() {
         this.status = LoanStatus.ACTIVE;
         this.disbursementDate = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    public void disburse() {
+        this.status = LoanStatus.ACTIVE;
+        this.disbursementDate = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    public void cancel() {
+        this.status = LoanStatus.CANCELLED;
         this.updatedAt = LocalDateTime.now();
     }
     

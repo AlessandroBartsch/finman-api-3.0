@@ -118,8 +118,9 @@ curl -X POST http://localhost:8080/api/users \
   -d '{
     "firstName": "Carlos",
     "lastName": "Ferreira",
-    "email": "carlos.ferreira@email.com",
-    "phoneNumber": "(11) 99999-5555"
+    "phoneNumber": "(11) 99999-5555",
+    "address": "Rua das Palmeiras, 456 - São Paulo/SP",
+    "dateOfBirth": "1985-08-20"
   }'
 ```
 
