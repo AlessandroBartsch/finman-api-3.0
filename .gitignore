@@ -65,3 +65,6 @@ Thumbs.db
 application-dev.properties
 application-prod.properties
 *.env
+
+# Upload directory
+uploads/

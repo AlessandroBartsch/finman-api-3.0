@@ -1,5 +1,6 @@
 package com.finman.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ public class LoanInstallment {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "loan_id", nullable = false)
+    @JsonIgnore
     private Loan loan;
     
     @Column(name = "installment_number", nullable = false)
@@ -51,6 +53,7 @@ public class LoanInstallment {
     
     // Relacionamentos
     @OneToMany(mappedBy = "installment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Transaction> transactions = new ArrayList<>();
     
     // Construtores
@@ -189,6 +192,16 @@ public class LoanInstallment {
             this.paidAt = LocalDateTime.now();
         }
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    // Método para compatibilidade com o controller
+    public BigDecimal getAmount() {
+        return this.totalDueAmount;
+    }
+    
+    public void setPaidDate(LocalDate paidDate) {
+        // Convertendo LocalDate para LocalDateTime
+        this.paidAt = paidDate.atStartOfDay();
     }
     
     @PrePersist

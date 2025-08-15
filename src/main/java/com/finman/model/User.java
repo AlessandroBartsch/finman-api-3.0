@@ -1,5 +1,6 @@
 package com.finman.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,8 +21,7 @@ public class User {
     @Column(name = "last_name", nullable = false)
     private String lastName;
     
-    @Column(nullable = false, unique = true)
-    private String email;
+
     
     @Column(name = "phone_number")
     private String phoneNumber;
@@ -32,6 +32,8 @@ public class User {
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
     
+
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -40,27 +42,35 @@ public class User {
     
     // Relacionamentos
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Loan> loans = new ArrayList<>();
     
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Transaction> transactions = new ArrayList<>();
     
     @OneToMany(mappedBy = "openedByUser", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<CashRegisterSession> openedSessions = new ArrayList<>();
     
     @OneToMany(mappedBy = "closedByUser", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<CashRegisterSession> closedSessions = new ArrayList<>();
     
     @OneToMany(mappedBy = "approvedByUser", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Loan> approvedLoans = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<Document> documents = new ArrayList<>();
     
     // Construtores
     public User() {}
     
-    public User(String firstName, String lastName, String email) {
+    public User(String firstName, String lastName) {
         this.firstName = firstName;
         this.lastName = lastName;
-        this.email = email;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -90,13 +100,7 @@ public class User {
         this.lastName = lastName;
     }
     
-    public String getEmail() {
-        return email;
-    }
-    
-    public void setEmail(String email) {
-        this.email = email;
-    }
+
     
     public String getPhoneNumber() {
         return phoneNumber;
@@ -121,6 +125,8 @@ public class User {
     public void setDateOfBirth(LocalDate dateOfBirth) {
         this.dateOfBirth = dateOfBirth;
     }
+    
+
     
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -176,6 +182,14 @@ public class User {
     
     public void setApprovedLoans(List<Loan> approvedLoans) {
         this.approvedLoans = approvedLoans;
+    }
+    
+    public List<Document> getDocuments() {
+        return documents;
+    }
+    
+    public void setDocuments(List<Document> documents) {
+        this.documents = documents;
     }
     
     // Métodos auxiliares
