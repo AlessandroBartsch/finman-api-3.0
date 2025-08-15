@@ -11,13 +11,13 @@ import java.util.Optional;
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, Long> {
     
-    List<Document> findByUserId(Long userId);
+    List<Document> findByUser_Id(Long userId);
     
-    List<Document> findByUserIdAndDocumentType(Long userId, DocumentType documentType);
+    List<Document> findByUser_IdAndDocumentType(Long userId, DocumentType documentType);
     
-    List<Document> findByUserIdAndIsVerified(Long userId, Boolean isVerified);
+    List<Document> findByUser_IdAndIsVerified(Long userId, Boolean isVerified);
     
-    Optional<Document> findByUserIdAndDocumentTypeAndIsVerified(Long userId, DocumentType documentType, Boolean isVerified);
+    Optional<Document> findByUser_IdAndDocumentTypeAndIsVerified(Long userId, DocumentType documentType, Boolean isVerified);
     
-    long countByUserIdAndDocumentType(Long userId, DocumentType documentType);
+    long countByUser_IdAndDocumentType(Long userId, DocumentType documentType);
 }

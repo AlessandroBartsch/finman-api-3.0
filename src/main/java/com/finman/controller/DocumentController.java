@@ -33,7 +33,7 @@ public class DocumentController {
     // Listar todos os documentos de um usuário
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Document>> getUserDocuments(@PathVariable Long userId) {
-        List<Document> documents = documentRepository.findByUserId(userId);
+        List<Document> documents = documentRepository.findByUser_Id(userId);
         return ResponseEntity.ok(documents);
     }
     
@@ -42,7 +42,7 @@ public class DocumentController {
     public ResponseEntity<List<Document>> getUserDocumentsByType(
             @PathVariable Long userId, 
             @PathVariable DocumentType documentType) {
-        List<Document> documents = documentRepository.findByUserIdAndDocumentType(userId, documentType);
+        List<Document> documents = documentRepository.findByUser_IdAndDocumentType(userId, documentType);
         return ResponseEntity.ok(documents);
     }
     
@@ -130,7 +130,10 @@ public class DocumentController {
             }
             
             Document document = documentOpt.get();
+            System.out.println("Visualizando documento: " + document.getFileName() + " - Tipo: " + document.getContentType());
+            
             byte[] fileBytes = fileStorageService.loadFileAsBytes(document.getFileName());
+            System.out.println("Tamanho do arquivo: " + fileBytes.length + " bytes");
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(document.getContentType()));
@@ -141,6 +144,8 @@ public class DocumentController {
                     .body(fileBytes);
                     
         } catch (Exception e) {
+            System.err.println("Erro ao visualizar documento: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }

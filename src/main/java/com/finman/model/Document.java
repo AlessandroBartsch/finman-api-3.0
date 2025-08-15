@@ -1,5 +1,6 @@
 package com.finman.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.finman.model.enums.DocumentType;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ public class Document {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
     
     @Enumerated(EnumType.STRING)
@@ -168,6 +170,11 @@ public class Document {
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    // Método auxiliar para obter o ID do usuário
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
     }
     
     // Métodos auxiliares
