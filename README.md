@@ -147,6 +147,7 @@ mvn test
 - ✅ Banco H2 configurado
 - ✅ API de usuários funcionando
 - ✅ Dados de exemplo carregados
+- ✅ Sistema de empréstimos com cálculo de juros compostos
 - 🔄 Controllers de empréstimos e caixa (próximo passo)
 - 🔄 Validações e tratamento de erros
 - 🔄 Testes automatizados
