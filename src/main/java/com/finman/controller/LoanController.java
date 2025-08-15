@@ -8,7 +8,9 @@ import com.finman.model.enums.PaymentFrequency;
 import com.finman.model.enums.PaymentType;
 import com.finman.repository.LoanRepository;
 import com.finman.repository.UserRepository;
+import com.finman.repository.LoanInstallmentRepository;
 import com.finman.dto.CreateLoanRequest;
+import com.finman.dto.UpdateLoanRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,9 @@ public class LoanController {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private LoanInstallmentRepository loanInstallmentRepository;
     
     @GetMapping
     public ResponseEntity<List<Loan>> getAllLoans() {
@@ -103,6 +108,9 @@ public class LoanController {
         loan.approve(approver);
         Loan savedLoan = loanRepository.save(loan);
         
+        // Criar parcelas automaticamente após aprovação
+        createInstallmentsForLoan(savedLoan);
+        
         return ResponseEntity.ok(savedLoan);
     }
     
@@ -115,6 +123,12 @@ public class LoanController {
         }
         
         Loan loan = loanOpt.get();
+        
+        // Só permite liberar se estiver aprovado
+        if (loan.getStatus() != LoanStatus.APPROVED) {
+            return ResponseEntity.badRequest().build();
+        }
+        
         loan.disburse();
         Loan savedLoan = loanRepository.save(loan);
         
@@ -122,7 +136,7 @@ public class LoanController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<Loan> updateLoan(@PathVariable Long id, @RequestBody CreateLoanRequest request) {
+    public ResponseEntity<Loan> updateLoan(@PathVariable Long id, @RequestBody UpdateLoanRequest request) {
         Optional<Loan> loanOpt = loanRepository.findById(id);
         Optional<User> userOpt = userRepository.findById(request.getUserId());
         
@@ -142,6 +156,11 @@ public class LoanController {
         loan.setPaymentType(request.getPaymentType() != null ? request.getPaymentType() : PaymentType.FIXED_INSTALLMENTS);
         loan.setAlternateDaysInterval(request.getAlternateDaysInterval());
         loan.setStartDate(request.getStartDate());
+        
+        // Atualizar status se fornecido
+        if (request.getStatus() != null) {
+            loan.setStatus(request.getStatus());
+        }
         
         // Recalcular data de fim
         LocalDate endDate = calculateEndDate(request.getStartDate(), request.getTermValue(), request.getPaymentFrequency());
@@ -166,6 +185,27 @@ public class LoanController {
         
         Loan loan = loanOpt.get();
         loan.cancel();
+        Loan savedLoan = loanRepository.save(loan);
+        
+        return ResponseEntity.ok(savedLoan);
+    }
+    
+    @PutMapping("/{id}/revert")
+    public ResponseEntity<Loan> revertLoan(@PathVariable Long id) {
+        Optional<Loan> loanOpt = loanRepository.findById(id);
+        
+        if (!loanOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Loan loan = loanOpt.get();
+        
+        // Só permite reverter se estiver aprovado
+        if (loan.getStatus() != LoanStatus.APPROVED) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        loan.revertToPending();
         Loan savedLoan = loanRepository.save(loan);
         
         return ResponseEntity.ok(savedLoan);
@@ -204,7 +244,8 @@ public class LoanController {
                 endDate = startDate.plusWeeks(termValue - 1);
                 break;
             case MONTHLY:
-                endDate = startDate.plusMonths(termValue - 1);
+                // Para pagamentos mensais, respeitar o último dia do mês
+                endDate = calculateEndDateWithOriginalDay(startDate, termValue);
                 break;
             case ALTERNATE_DAYS:
                 // Para dias alternados, assumimos que termValue é o número de parcelas
@@ -214,6 +255,89 @@ public class LoanController {
         }
         
         return endDate;
+    }
+    
+    private LocalDate calculateEndDateWithOriginalDay(LocalDate startDate, Integer termValue) {
+        // Rastrear o dia original do empréstimo
+        int originalDayOfMonth = startDate.getDayOfMonth();
+        LocalDate currentDate = startDate;
+        
+        // Calcular a data final usando a lógica que respeita o dia original
+        for (int i = 1; i < termValue; i++) {
+            currentDate = calculateNextMonthlyDateWithOriginalDay(currentDate, originalDayOfMonth);
+        }
+        
+        return currentDate;
+    }
+    
+    private BigDecimal calculateProportionalInterest(BigDecimal baseInterestAmount, LocalDate installmentDate, LocalDate currentDate, int installmentNumber, LocalDate previousInstallmentDate) {
+        // Para a primeira parcela, calcular proporcionalidade entre data atual e data da parcela
+        if (installmentNumber == 1) {
+            // Se a data da parcela é igual à data atual, não há proporcionalidade
+            if (installmentDate.equals(currentDate)) {
+                return baseInterestAmount;
+            }
+            
+            // Calcular dias entre a data atual e a data da parcela
+            long daysUntilInstallment = java.time.temporal.ChronoUnit.DAYS.between(currentDate, installmentDate);
+            
+            // Se não há diferença de dias ou é negativo, retornar o valor original
+            if (daysUntilInstallment <= 0) {
+                return baseInterestAmount;
+            }
+            
+            // Aplicar proporcionalidade: (juros mensais × dias) ÷ 30
+            BigDecimal proportionalFactor = BigDecimal.valueOf(daysUntilInstallment)
+                .divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP);
+            
+            return baseInterestAmount.multiply(proportionalFactor).setScale(2, RoundingMode.HALF_UP);
+        } else {
+            // Para parcelas subsequentes, calcular proporcionalidade entre a data da parcela anterior e a atual
+            if (previousInstallmentDate == null) {
+                return baseInterestAmount;
+            }
+            
+            // Calcular dias entre a data da parcela anterior e a data da parcela atual
+            long daysBetweenInstallments = java.time.temporal.ChronoUnit.DAYS.between(previousInstallmentDate, installmentDate);
+            
+            // Se não há diferença de dias ou é negativo, retornar o valor original
+            if (daysBetweenInstallments <= 0) {
+                return baseInterestAmount;
+            }
+            
+            // Aplicar proporcionalidade: (juros mensais × dias) ÷ 30
+            BigDecimal proportionalFactor = BigDecimal.valueOf(daysBetweenInstallments)
+                .divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP);
+            
+            return baseInterestAmount.multiply(proportionalFactor).setScale(2, RoundingMode.HALF_UP);
+        }
+    }
+    
+    private void createInstallmentsForLoan(Loan loan) {
+        // Gerar parcelas usando a mesma lógica da simulação
+        List<LoanInstallment> installments = generateSimulatedInstallments(loan);
+        
+        // Calcular totais
+        BigDecimal totalInterest = installments.stream()
+            .map(LoanInstallment::getInterestAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+        BigDecimal totalLoanValue = installments.stream()
+            .map(LoanInstallment::getTotalDueAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Atualizar os totais no empréstimo
+        loan.setTotalInterest(totalInterest);
+        loan.setTotalLoanValue(totalLoanValue);
+        
+        // Salvar as parcelas no banco de dados
+        for (LoanInstallment installment : installments) {
+            installment.setLoan(loan);
+            loanInstallmentRepository.save(installment);
+        }
+        
+        // Salvar o empréstimo atualizado
+        loanRepository.save(loan);
     }
     
     private List<LoanInstallment> generateSimulatedInstallments(Loan loan) {
@@ -245,9 +369,19 @@ public class LoanController {
         BigDecimal totalPrincipal = loan.getLoanAmount();
         BigDecimal monthlyInterestRate = loan.getInterestRate(); // Já é mensal (ex: 0.20 para 20%)
         
+        // Obter data atual para cálculo proporcional da primeira parcela
+        LocalDate today = LocalDate.now();
+        LocalDate previousInstallmentDate = null;
+        
+        // Rastrear o dia original do empréstimo
+        int originalDayOfMonth = currentDate.getDayOfMonth();
+        
         for (int i = 1; i <= loan.getTermValue(); i++) {
             // Calcular juros sobre o saldo devedor atual
-            BigDecimal interestAmount = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal baseInterestAmount = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, RoundingMode.HALF_UP);
+            
+            // Aplicar proporcionalidade baseada em dias
+            BigDecimal interestAmount = calculateProportionalInterest(baseInterestAmount, currentDate, today, i, previousInstallmentDate);
             
             // Calcular valor da parcela (principal + juros)
             BigDecimal principalPerInstallment = totalPrincipal.divide(BigDecimal.valueOf(loan.getTermValue()), 2, RoundingMode.HALF_UP);
@@ -263,9 +397,10 @@ public class LoanController {
             LoanInstallment installment = createInstallment(loan, i, currentDate, currentPrincipalAmount, interestAmount, totalDueAmount);
             installments.add(installment);
             
-            // Atualizar saldo devedor e próxima data
+            // Atualizar saldo devedor, próxima data e data da parcela anterior
             remainingPrincipal = remainingPrincipal.subtract(currentPrincipalAmount);
-            currentDate = calculateNextDate(currentDate, loan.getPaymentFrequency(), loan.getAlternateDaysInterval());
+            previousInstallmentDate = currentDate;
+            currentDate = calculateNextMonthlyDateWithOriginalDay(currentDate, originalDayOfMonth);
         }
         
         return installments;
@@ -275,9 +410,19 @@ public class LoanController {
         List<LoanInstallment> installments = new ArrayList<>();
         BigDecimal monthlyInterestRate = loan.getInterestRate(); // Já é mensal (ex: 0.20 para 20%)
         
+        // Obter data atual para cálculo proporcional da primeira parcela
+        LocalDate today = LocalDate.now();
+        LocalDate previousInstallmentDate = null;
+        
+        // Rastrear o dia original do empréstimo
+        int originalDayOfMonth = currentDate.getDayOfMonth();
+        
         for (int i = 1; i <= loan.getTermValue(); i++) {
             // Calcular juros sobre o saldo devedor atual
-            BigDecimal interestAmount = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal baseInterestAmount = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, RoundingMode.HALF_UP);
+            
+            // Aplicar proporcionalidade baseada em dias
+            BigDecimal interestAmount = calculateProportionalInterest(baseInterestAmount, currentDate, today, i, previousInstallmentDate);
             
             // Para as parcelas normais, só paga juros
             BigDecimal currentPrincipalAmount = BigDecimal.ZERO;
@@ -291,9 +436,10 @@ public class LoanController {
             LoanInstallment installment = createInstallment(loan, i, currentDate, currentPrincipalAmount, interestAmount, totalDueAmount);
             installments.add(installment);
             
-            // Atualizar saldo devedor e próxima data
+            // Atualizar saldo devedor, próxima data e data da parcela anterior
             remainingPrincipal = remainingPrincipal.subtract(currentPrincipalAmount);
-            currentDate = calculateNextDate(currentDate, loan.getPaymentFrequency(), loan.getAlternateDaysInterval());
+            previousInstallmentDate = currentDate;
+            currentDate = calculateNextMonthlyDateWithOriginalDay(currentDate, originalDayOfMonth);
         }
         
         return installments;
@@ -303,11 +449,21 @@ public class LoanController {
         List<LoanInstallment> installments = new ArrayList<>();
         BigDecimal monthlyInterestRate = loan.getInterestRate(); // Já é mensal (ex: 0.20 para 20%)
         
+        // Obter data atual para cálculo proporcional da primeira parcela
+        LocalDate today = LocalDate.now();
+        LocalDate previousInstallmentDate = null;
+        
+        // Rastrear o dia original do empréstimo
+        int originalDayOfMonth = currentDate.getDayOfMonth();
+        
         // Para pagamento flexível, criamos parcelas com valores variados
         // O cliente pode pagar conforme sua disponibilidade
         for (int i = 1; i <= loan.getTermValue(); i++) {
             // Calcular juros sobre o saldo devedor atual
-            BigDecimal interestAmount = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal baseInterestAmount = remainingPrincipal.multiply(monthlyInterestRate).setScale(2, RoundingMode.HALF_UP);
+            
+            // Aplicar proporcionalidade baseada em dias
+            BigDecimal interestAmount = calculateProportionalInterest(baseInterestAmount, currentDate, today, i, previousInstallmentDate);
             
             // Para flexível, sugerimos um valor mínimo (juros + parte do principal)
             BigDecimal suggestedPrincipalAmount = remainingPrincipal.divide(BigDecimal.valueOf(loan.getTermValue() - i + 1), 2, RoundingMode.HALF_UP);
@@ -322,9 +478,10 @@ public class LoanController {
             LoanInstallment installment = createInstallment(loan, i, currentDate, currentPrincipalAmount, interestAmount, totalDueAmount);
             installments.add(installment);
             
-            // Atualizar saldo devedor e próxima data
+            // Atualizar saldo devedor, próxima data e data da parcela anterior
             remainingPrincipal = remainingPrincipal.subtract(currentPrincipalAmount);
-            currentDate = calculateNextDate(currentDate, loan.getPaymentFrequency(), loan.getAlternateDaysInterval());
+            previousInstallmentDate = currentDate;
+            currentDate = calculateNextMonthlyDateWithOriginalDay(currentDate, originalDayOfMonth);
         }
         
         return installments;
@@ -351,11 +508,47 @@ public class LoanController {
             case WEEKLY:
                 return currentDate.plusWeeks(1);
             case MONTHLY:
-                return currentDate.plusMonths(1);
+                // Para pagamentos mensais, respeitar o último dia do mês
+                return calculateNextMonthlyDate(currentDate);
             case ALTERNATE_DAYS:
                 return currentDate.plusDays(alternateDaysInterval != null ? alternateDaysInterval : 2);
             default:
-                return currentDate.plusMonths(1);
+                return calculateNextMonthlyDate(currentDate);
+        }
+    }
+    
+    private LocalDate calculateNextMonthlyDate(LocalDate currentDate) {
+        // Obter o dia do mês da data atual
+        int dayOfMonth = currentDate.getDayOfMonth();
+        
+        // Adicionar 1 mês
+        LocalDate nextMonth = currentDate.plusMonths(1);
+        
+        // Verificar se o mês seguinte tem o mesmo dia
+        int daysInNextMonth = nextMonth.lengthOfMonth();
+        
+        if (dayOfMonth > daysInNextMonth) {
+            // Se o dia não existe no próximo mês, usar o último dia do mês
+            return nextMonth.withDayOfMonth(daysInNextMonth);
+        } else {
+            // Se o dia existe, usar o mesmo dia
+            return nextMonth.withDayOfMonth(dayOfMonth);
+        }
+    }
+    
+    private LocalDate calculateNextMonthlyDateWithOriginalDay(LocalDate currentDate, int originalDayOfMonth) {
+        // Adicionar 1 mês
+        LocalDate nextMonth = currentDate.plusMonths(1);
+        
+        // Verificar se o mês seguinte tem o dia original
+        int daysInNextMonth = nextMonth.lengthOfMonth();
+        
+        if (originalDayOfMonth > daysInNextMonth) {
+            // Se o dia original não existe no próximo mês, usar o último dia do mês
+            return nextMonth.withDayOfMonth(daysInNextMonth);
+        } else {
+            // Se o dia original existe, usar o dia original
+            return nextMonth.withDayOfMonth(originalDayOfMonth);
         }
     }
 }

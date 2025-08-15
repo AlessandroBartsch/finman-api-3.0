@@ -73,6 +73,12 @@ public class Loan {
     @Column(name = "outstanding_balance", precision = 18, scale = 2)
     private BigDecimal outstandingBalance;
     
+    @Column(name = "total_interest", precision = 18, scale = 2)
+    private BigDecimal totalInterest = BigDecimal.ZERO;
+    
+    @Column(name = "total_loan_value", precision = 18, scale = 2)
+    private BigDecimal totalLoanValue = BigDecimal.ZERO;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -228,6 +234,22 @@ public class Loan {
         this.outstandingBalance = outstandingBalance;
     }
     
+    public BigDecimal getTotalInterest() {
+        return totalInterest;
+    }
+    
+    public void setTotalInterest(BigDecimal totalInterest) {
+        this.totalInterest = totalInterest;
+    }
+    
+    public BigDecimal getTotalLoanValue() {
+        return totalLoanValue;
+    }
+    
+    public void setTotalLoanValue(BigDecimal totalLoanValue) {
+        this.totalLoanValue = totalLoanValue;
+    }
+    
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -281,6 +303,12 @@ public class Loan {
     
     public void cancel() {
         this.status = LoanStatus.CANCELLED;
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    public void revertToPending() {
+        this.status = LoanStatus.PENDING;
+        this.approvedByUser = null;
         this.updatedAt = LocalDateTime.now();
     }
     
