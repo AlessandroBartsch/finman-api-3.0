@@ -10,11 +10,11 @@ import java.util.List;
 @Repository
 public interface LoanRepository extends JpaRepository<Loan, Long> {
     
-    List<Loan> findByUserId(Long userId);
+    List<Loan> findByUser_Id(Long userId);
     
     List<Loan> findByStatus(LoanStatus status);
     
-    List<Loan> findByUserIdAndStatus(Long userId, LoanStatus status);
+    List<Loan> findByUser_IdAndStatus(Long userId, LoanStatus status);
     
     List<Loan> findByOutstandingBalanceGreaterThan(java.math.BigDecimal amount);
 }

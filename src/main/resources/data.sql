@@ -9,8 +9,8 @@ INSERT INTO users (first_name, last_name, phone_number, address, date_of_birth, 
 ('Willian', 'Moreira', '(11) 99999-5555', 'Rua das Palmeiras, 789 - São Paulo/SP', '1985-08-20', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Inserir empréstimos
-INSERT INTO loans (user_id, loan_amount, interest_rate, start_date, end_date, payment_frequency, term_value, status, outstanding_balance, total_paid_amount, created_at, updated_at) VALUES
-(5, 1000.00, 0.2000, '2024-12-29', '2025-03-29', 'MONTHLY', 3, 'ACTIVE', 950.00, 475.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO loans (user_id, loan_amount, interest_rate, start_date, end_date, payment_frequency, payment_type, term_value, status, outstanding_balance, total_paid_amount, created_at, updated_at) VALUES
+(5, 1000.00, 0.2000, '2024-12-29', '2025-03-29', 'MONTHLY', 'FIXED_INSTALLMENTS', 3, 'ACTIVE', 950.00, 475.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- Inserir parcelas do empréstimo do Willian
 INSERT INTO loan_installments (loan_id, installment_number, due_date, principal_amount, interest_amount, total_due_amount, is_paid, paid_amount, paid_at, created_at, updated_at) VALUES

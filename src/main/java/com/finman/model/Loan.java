@@ -3,6 +3,7 @@ package com.finman.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.finman.model.enums.LoanStatus;
 import com.finman.model.enums.PaymentFrequency;
+import com.finman.model.enums.PaymentType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,6 +24,11 @@ public class Loan {
     @JsonIgnore
     private User user;
     
+    // Método para retornar o userId no JSON
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
+    }
+    
     @Column(name = "loan_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal loanAmount;
     
@@ -35,6 +41,10 @@ public class Loan {
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_frequency", nullable = false)
     private PaymentFrequency paymentFrequency;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_type", nullable = false)
+    private PaymentType paymentType = PaymentType.FIXED_INSTALLMENTS;
     
     @Column(name = "alternate_days_interval")
     private Integer alternateDaysInterval;
@@ -144,6 +154,14 @@ public class Loan {
     
     public void setPaymentFrequency(PaymentFrequency paymentFrequency) {
         this.paymentFrequency = paymentFrequency;
+    }
+    
+    public PaymentType getPaymentType() {
+        return paymentType;
+    }
+    
+    public void setPaymentType(PaymentType paymentType) {
+        this.paymentType = paymentType;
     }
     
     public Integer getAlternateDaysInterval() {
