@@ -79,6 +79,7 @@ public class LoanController {
         loan.setPaymentType(request.getPaymentType() != null ? request.getPaymentType() : PaymentType.FIXED_INSTALLMENTS);
         loan.setAlternateDaysInterval(request.getAlternateDaysInterval());
         loan.setStartDate(request.getStartDate());
+        loan.setChargeInterestSeparately(request.getChargeInterestSeparately() != null ? request.getChargeInterestSeparately() : false);
         
         // Calcular a data de fim baseada na frequência de pagamento
         LocalDate endDate = calculateEndDate(request.getStartDate(), request.getTermValue(), request.getPaymentFrequency());
@@ -156,6 +157,7 @@ public class LoanController {
         loan.setPaymentType(request.getPaymentType() != null ? request.getPaymentType() : PaymentType.FIXED_INSTALLMENTS);
         loan.setAlternateDaysInterval(request.getAlternateDaysInterval());
         loan.setStartDate(request.getStartDate());
+        loan.setChargeInterestSeparately(request.getChargeInterestSeparately() != null ? request.getChargeInterestSeparately() : false);
         
         // Atualizar status se fornecido
         if (request.getStatus() != null) {
@@ -426,18 +428,39 @@ public class LoanController {
             
             // Para as parcelas normais, só paga juros
             BigDecimal currentPrincipalAmount = BigDecimal.ZERO;
+            
             if (i == loan.getTermValue()) {
-                // Na última parcela, paga o principal + juros
-                currentPrincipalAmount = remainingPrincipal;
+                // Na última parcela
+                if (loan.getChargeInterestSeparately() != null && loan.getChargeInterestSeparately()) {
+                    // Criar duas parcelas separadas: uma para juros e outra para principal
+                    
+                    // Parcela 1: Apenas juros
+                    LoanInstallment interestInstallment = createInstallment(loan, i, currentDate, BigDecimal.ZERO, interestAmount, interestAmount);
+                    installments.add(interestInstallment);
+                    
+                    // Parcela 2: Apenas principal
+                    LoanInstallment principalInstallment = createInstallment(loan, i + 1, currentDate, remainingPrincipal, BigDecimal.ZERO, remainingPrincipal);
+                    installments.add(principalInstallment);
+                    
+                    // Atualizar saldo devedor
+                    remainingPrincipal = BigDecimal.ZERO;
+                } else {
+                    // Comportamento original: principal + juros na mesma parcela
+                    currentPrincipalAmount = remainingPrincipal;
+                }
             }
             
-            BigDecimal totalDueAmount = currentPrincipalAmount.add(interestAmount);
+            if (i < loan.getTermValue() || (loan.getChargeInterestSeparately() == null || !loan.getChargeInterestSeparately())) {
+                BigDecimal totalDueAmount = currentPrincipalAmount.add(interestAmount);
+                
+                LoanInstallment installment = createInstallment(loan, i, currentDate, currentPrincipalAmount, interestAmount, totalDueAmount);
+                installments.add(installment);
+                
+                // Atualizar saldo devedor
+                remainingPrincipal = remainingPrincipal.subtract(currentPrincipalAmount);
+            }
             
-            LoanInstallment installment = createInstallment(loan, i, currentDate, currentPrincipalAmount, interestAmount, totalDueAmount);
-            installments.add(installment);
-            
-            // Atualizar saldo devedor, próxima data e data da parcela anterior
-            remainingPrincipal = remainingPrincipal.subtract(currentPrincipalAmount);
+            // Atualizar próxima data e data da parcela anterior
             previousInstallmentDate = currentDate;
             currentDate = calculateNextMonthlyDateWithOriginalDay(currentDate, originalDayOfMonth);
         }
@@ -470,16 +493,37 @@ public class LoanController {
             BigDecimal currentPrincipalAmount = suggestedPrincipalAmount;
             
             if (i == loan.getTermValue()) {
-                currentPrincipalAmount = remainingPrincipal;
+                // Na última parcela
+                if (loan.getChargeInterestSeparately() != null && loan.getChargeInterestSeparately()) {
+                    // Criar duas parcelas separadas: uma para juros e outra para principal
+                    
+                    // Parcela 1: Apenas juros
+                    LoanInstallment interestInstallment = createInstallment(loan, i, currentDate, BigDecimal.ZERO, interestAmount, interestAmount);
+                    installments.add(interestInstallment);
+                    
+                    // Parcela 2: Apenas principal
+                    LoanInstallment principalInstallment = createInstallment(loan, i + 1, currentDate, remainingPrincipal, BigDecimal.ZERO, remainingPrincipal);
+                    installments.add(principalInstallment);
+                    
+                    // Atualizar saldo devedor
+                    remainingPrincipal = BigDecimal.ZERO;
+                } else {
+                    // Comportamento original: principal + juros na mesma parcela
+                    currentPrincipalAmount = remainingPrincipal;
+                }
             }
             
-            BigDecimal totalDueAmount = currentPrincipalAmount.add(interestAmount);
+            if (i < loan.getTermValue() || (loan.getChargeInterestSeparately() == null || !loan.getChargeInterestSeparately())) {
+                BigDecimal totalDueAmount = currentPrincipalAmount.add(interestAmount);
+                
+                LoanInstallment installment = createInstallment(loan, i, currentDate, currentPrincipalAmount, interestAmount, totalDueAmount);
+                installments.add(installment);
+                
+                // Atualizar saldo devedor
+                remainingPrincipal = remainingPrincipal.subtract(currentPrincipalAmount);
+            }
             
-            LoanInstallment installment = createInstallment(loan, i, currentDate, currentPrincipalAmount, interestAmount, totalDueAmount);
-            installments.add(installment);
-            
-            // Atualizar saldo devedor, próxima data e data da parcela anterior
-            remainingPrincipal = remainingPrincipal.subtract(currentPrincipalAmount);
+            // Atualizar próxima data e data da parcela anterior
             previousInstallmentDate = currentDate;
             currentDate = calculateNextMonthlyDateWithOriginalDay(currentDate, originalDayOfMonth);
         }

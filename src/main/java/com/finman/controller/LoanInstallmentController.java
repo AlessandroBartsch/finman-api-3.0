@@ -96,6 +96,37 @@ public class LoanInstallmentController {
         return ResponseEntity.ok(savedInstallment);
     }
     
+    @PutMapping("/{id}")
+    public ResponseEntity<LoanInstallment> updateInstallment(@PathVariable Long id, @RequestBody LoanInstallment installmentUpdate) {
+        Optional<LoanInstallment> installmentOpt = installmentRepository.findById(id);
+        
+        if (!installmentOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        LoanInstallment installment = installmentOpt.get();
+        
+        // Atualizar campos permitidos
+        if (installmentUpdate.getInstallmentNumber() != null) {
+            installment.setInstallmentNumber(installmentUpdate.getInstallmentNumber());
+        }
+        if (installmentUpdate.getDueDate() != null) {
+            installment.setDueDate(installmentUpdate.getDueDate());
+        }
+        if (installmentUpdate.getPrincipalAmount() != null) {
+            installment.setPrincipalAmount(installmentUpdate.getPrincipalAmount());
+        }
+        if (installmentUpdate.getInterestAmount() != null) {
+            installment.setInterestAmount(installmentUpdate.getInterestAmount());
+        }
+        
+        // Recalcular valores derivados
+        installment.setTotalDueAmount(installment.getPrincipalAmount().add(installment.getInterestAmount()));
+        
+        LoanInstallment savedInstallment = installmentRepository.save(installment);
+        return ResponseEntity.ok(savedInstallment);
+    }
+    
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInstallment(@PathVariable Long id) {
         Optional<LoanInstallment> installment = installmentRepository.findById(id);

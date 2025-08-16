@@ -79,6 +79,9 @@ public class Loan {
     @Column(name = "total_loan_value", precision = 18, scale = 2)
     private BigDecimal totalLoanValue = BigDecimal.ZERO;
     
+    @Column(name = "charge_interest_separately")
+    private Boolean chargeInterestSeparately = false;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -248,6 +251,14 @@ public class Loan {
     
     public void setTotalLoanValue(BigDecimal totalLoanValue) {
         this.totalLoanValue = totalLoanValue;
+    }
+    
+    public Boolean getChargeInterestSeparately() {
+        return chargeInterestSeparately;
+    }
+    
+    public void setChargeInterestSeparately(Boolean chargeInterestSeparately) {
+        this.chargeInterestSeparately = chargeInterestSeparately;
     }
     
     public LocalDateTime getCreatedAt() {

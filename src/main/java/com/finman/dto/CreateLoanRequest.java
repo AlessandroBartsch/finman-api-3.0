@@ -14,6 +14,7 @@ public class CreateLoanRequest {
     private PaymentType paymentType;
     private Integer alternateDaysInterval;
     private LocalDate startDate;
+    private Boolean chargeInterestSeparately;
 
     // Getters and Setters
     public Long getUserId() {
@@ -80,5 +81,12 @@ public class CreateLoanRequest {
         this.startDate = startDate;
     }
 
+    public Boolean getChargeInterestSeparately() {
+        return chargeInterestSeparately;
+    }
+
+    public void setChargeInterestSeparately(Boolean chargeInterestSeparately) {
+        this.chargeInterestSeparately = chargeInterestSeparately;
+    }
 
 }

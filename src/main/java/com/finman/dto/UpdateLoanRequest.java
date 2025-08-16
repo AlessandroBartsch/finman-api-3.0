@@ -16,6 +16,7 @@ public class UpdateLoanRequest {
     private Integer alternateDaysInterval;
     private LocalDate startDate;
     private LoanStatus status;
+    private Boolean chargeInterestSeparately;
 
     // Getters and Setters
     public Long getUserId() {
@@ -88,5 +89,13 @@ public class UpdateLoanRequest {
 
     public void setStatus(LoanStatus status) {
         this.status = status;
+    }
+
+    public Boolean getChargeInterestSeparately() {
+        return chargeInterestSeparately;
+    }
+
+    public void setChargeInterestSeparately(Boolean chargeInterestSeparately) {
+        this.chargeInterestSeparately = chargeInterestSeparately;
     }
 }
