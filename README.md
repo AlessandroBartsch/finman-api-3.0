@@ -41,23 +41,40 @@ API de Gerenciamento Financeiro desenvolvida com Spring Boot, focada em controle
 src/main/java/com/finman/
 ├── FinmanApiApplication.java           # Classe principal
 ├── controller/                         # Controllers REST
-│   └── UserController.java            # API de usuários
+│   ├── UserController.java            # API de usuários
+│   ├── LoanController.java            # API de empréstimos
+│   ├── LoanInstallmentController.java # API de parcelas
+│   ├── DocumentController.java        # API de documentos
+│   └── DashboardController.java       # API de dashboard
 ├── model/                             # Entidades JPA
 │   ├── enums/                         # Enums do sistema
 │   │   ├── LoanStatus.java
 │   │   ├── PaymentFrequency.java
+│   │   ├── PaymentType.java
 │   │   ├── TransactionType.java
 │   │   ├── CashMovementType.java
-│   │   └── CashRegisterSessionStatus.java
+│   │   ├── CashRegisterSessionStatus.java
+│   │   ├── UserSituation.java
+│   │   └── DocumentType.java
 │   ├── User.java                      # Usuários do sistema
 │   ├── Loan.java                      # Empréstimos
 │   ├── LoanInstallment.java           # Parcelas dos empréstimos
 │   ├── Transaction.java               # Transações financeiras
+│   ├── Document.java                  # Documentos dos usuários
 │   ├── CashRegister.java              # Caixas físicos/lógicos
 │   ├── CashRegisterSession.java       # Sessões de caixa
 │   └── CashMovement.java              # Movimentos de caixa
-└── repository/                        # Repositórios JPA
-    └── UserRepository.java
+├── repository/                        # Repositórios JPA
+│   ├── UserRepository.java
+│   ├── LoanRepository.java
+│   ├── LoanInstallmentRepository.java
+│   └── DocumentRepository.java
+├── service/                           # Serviços
+│   └── FileStorageService.java        # Serviço de armazenamento de arquivos
+└── dto/                               # Data Transfer Objects
+    ├── CreateLoanRequest.java
+    ├── UpdateLoanRequest.java
+    └── SimulateInstallmentsResponse.java
 ```
 
 ## 🗄️ Modelo de Dados
@@ -68,9 +85,10 @@ src/main/java/com/finman/
 2. **Loan** - Empréstimos com status, juros e parcelas
 3. **LoanInstallment** - Parcelas individuais dos empréstimos
 4. **Transaction** - Transações financeiras (pagamentos, desembolsos, etc.)
-5. **CashRegister** - Caixas físicos/lógicos
-6. **CashRegisterSession** - Sessões de abertura/fechamento de caixa
-7. **CashMovement** - Movimentos de entrada/saída de dinheiro
+5. **Document** - Documentos dos usuários (RG, CPF, comprovantes, etc.)
+6. **CashRegister** - Caixas físicos/lógicos
+7. **CashRegisterSession** - Sessões de abertura/fechamento de caixa
+8. **CashMovement** - Movimentos de entrada/saída de dinheiro
 
 ### Enums
 
@@ -90,6 +108,42 @@ src/main/java/com/finman/
 - `POST /api/users` - Criar novo usuário
 - `PUT /api/users/{id}` - Atualizar usuário
 - `DELETE /api/users/{id}` - Deletar usuário
+
+### Empréstimos (`/api/loans`)
+- `GET /api/loans` - Listar todos os empréstimos
+- `GET /api/loans/{id}` - Buscar empréstimo por ID
+- `GET /api/loans/user/{userId}` - Buscar empréstimos por usuário
+- `GET /api/loans/status/{status}` - Buscar empréstimos por status
+- `GET /api/loans/filter` - Filtrar empréstimos por situação
+- `POST /api/loans` - Criar novo empréstimo
+- `PUT /api/loans/{id}` - Atualizar empréstimo
+- `PUT /api/loans/{id}/approve` - Aprovar empréstimo
+- `PUT /api/loans/{id}/disburse` - Liberar empréstimo
+- `PUT /api/loans/{id}/cancel` - Cancelar empréstimo
+- `PUT /api/loans/{id}/revert` - Reverter empréstimo
+- `DELETE /api/loans/{id}` - Deletar empréstimo
+
+### Parcelas (`/api/installments`)
+- `GET /api/installments` - Listar todas as parcelas
+- `GET /api/installments/{id}` - Buscar parcela por ID
+- `GET /api/installments/loan/{loanId}` - Buscar parcelas por empréstimo
+- `GET /api/installments/loan/{loanId}/overdue` - Buscar parcelas em atraso
+- `GET /api/installments/loan/{loanId}/with-overdue-calculation` - Parcelas com cálculo de juros
+- `PUT /api/installments/{id}/pay` - Pagar parcela
+- `PUT /api/installments/{id}/mark-as-paid` - Marcar parcela como paga
+- `PUT /api/installments/{id}/update-daily-interest-rate` - Atualizar taxa de juros diária
+
+### Documentos (`/api/documents`)
+- `GET /api/documents/user/{userId}` - Buscar documentos por usuário
+- `GET /api/documents/user/{userId}/type/{type}` - Buscar documentos por tipo
+- `POST /api/documents/user/{userId}` - Upload de documento
+- `GET /api/documents/{id}/download` - Download de documento
+- `GET /api/documents/{id}/view` - Visualizar documento
+- `PUT /api/documents/{id}/verify` - Verificar documento
+- `DELETE /api/documents/{id}` - Deletar documento
+
+### Dashboard (`/api/dashboard`)
+- `GET /api/dashboard/stats` - Estatísticas gerais do sistema
 
 ## 📊 Dados de Exemplo
 
@@ -130,12 +184,13 @@ curl -X POST http://localhost:8080/api/users \
 
 ## 📝 Próximos Passos
 
-1. Implementar controllers para empréstimos e caixa
-2. Adicionar validações mais robustas
-3. Implementar autenticação e autorização
-4. Adicionar testes unitários e de integração
-5. Implementar relatórios financeiros
-6. Criar interface web
+1. ✅ Implementar controllers para empréstimos e documentos
+2. ✅ Adicionar validações básicas
+3. 🔄 Implementar autenticação e autorização
+4. 🔄 Adicionar testes unitários e de integração
+5. 🔄 Implementar relatórios financeiros
+6. ✅ Criar interface web (frontend React)
+7. 🔄 Sistema de caixa (futuro)
 
 ## 🧪 Testes
 
@@ -152,6 +207,10 @@ mvn test
 - ✅ API de usuários funcionando
 - ✅ Dados de exemplo carregados
 - ✅ Sistema de empréstimos com cálculo de juros compostos
-- 🔄 Controllers de empréstimos e caixa (próximo passo)
-- 🔄 Validações e tratamento de erros
-- 🔄 Testes automatizados
+- ✅ Controllers de empréstimos implementados
+- ✅ Sistema de parcelas com cálculo de juros de atraso
+- ✅ Sistema de documentos com upload e download
+- ✅ API de dashboard com estatísticas
+- ✅ Validações básicas implementadas
+- 🔄 Testes automatizados (próximo passo)
+- 🔄 Sistema de caixa (futuro)

@@ -51,6 +51,25 @@ public class LoanInstallment {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
+    // Campos para cálculo de atraso
+    @Column(name = "daily_interest_rate", precision = 5, scale = 2)
+    private BigDecimal dailyInterestRate = new BigDecimal("1.00"); // Padrão 1% ao dia
+    
+    @Column(name = "overdue_days")
+    private Integer overdueDays = 0;
+    
+    @Column(name = "daily_interest_amount", precision = 18, scale = 2)
+    private BigDecimal dailyInterestAmount = BigDecimal.ZERO;
+    
+    @Column(name = "overdue_interest_amount", precision = 18, scale = 2)
+    private BigDecimal overdueInterestAmount = BigDecimal.ZERO;
+    
+    @Column(name = "total_with_overdue", precision = 18, scale = 2)
+    private BigDecimal totalWithOverdue = BigDecimal.ZERO;
+    
+    @Column(name = "negotiation_comment", columnDefinition = "text")
+    private String negotiationComment;
+    
     // Relacionamentos
     @OneToMany(mappedBy = "installment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
@@ -67,6 +86,7 @@ public class LoanInstallment {
         this.principalAmount = principalAmount;
         this.interestAmount = interestAmount;
         this.totalDueAmount = principalAmount.add(interestAmount);
+        this.totalWithOverdue = this.totalDueAmount; // Inicialmente igual ao valor original
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -168,6 +188,55 @@ public class LoanInstallment {
         this.updatedAt = updatedAt;
     }
     
+    // Getters e Setters para campos de atraso
+    public BigDecimal getDailyInterestRate() {
+        return dailyInterestRate;
+    }
+    
+    public void setDailyInterestRate(BigDecimal dailyInterestRate) {
+        this.dailyInterestRate = dailyInterestRate;
+    }
+    
+    public Integer getOverdueDays() {
+        return overdueDays;
+    }
+    
+    public void setOverdueDays(Integer overdueDays) {
+        this.overdueDays = overdueDays;
+    }
+    
+    public BigDecimal getDailyInterestAmount() {
+        return dailyInterestAmount;
+    }
+    
+    public void setDailyInterestAmount(BigDecimal dailyInterestAmount) {
+        this.dailyInterestAmount = dailyInterestAmount;
+    }
+    
+    public BigDecimal getOverdueInterestAmount() {
+        return overdueInterestAmount;
+    }
+    
+    public void setOverdueInterestAmount(BigDecimal overdueInterestAmount) {
+        this.overdueInterestAmount = overdueInterestAmount;
+    }
+    
+    public BigDecimal getTotalWithOverdue() {
+        return totalWithOverdue;
+    }
+    
+    public void setTotalWithOverdue(BigDecimal totalWithOverdue) {
+        this.totalWithOverdue = totalWithOverdue;
+    }
+    
+    public String getNegotiationComment() {
+        return negotiationComment;
+    }
+    
+    public void setNegotiationComment(String negotiationComment) {
+        this.negotiationComment = negotiationComment;
+    }
+    
     public List<Transaction> getTransactions() {
         return transactions;
     }
@@ -185,11 +254,93 @@ public class LoanInstallment {
         return !isPaid && dueDate.isBefore(LocalDate.now());
     }
     
+    /**
+     * Calcula os juros de atraso baseado na planilha do usuário
+     * Fórmula: VALOR P/DIA = VALOR × (JUROS AO DIA / 100)
+     * JUROS DO PERÍODO = VALOR P/DIA × QUANTIDADE DE DIAS EM ATRASO
+     * JUROS MAIS CAPITAL = VALOR + JUROS DO PERÍODO
+     */
+    public void calculateOverdueInterest() {
+        // Se a parcela está paga, o totalWithOverdue deve ser igual ao valor pago
+        if (this.isPaid) {
+            this.overdueDays = 0;
+            this.dailyInterestAmount = BigDecimal.ZERO;
+            this.overdueInterestAmount = BigDecimal.ZERO;
+            this.totalWithOverdue = this.paidAmount;
+            return;
+        }
+        
+        if (!isOverdue()) {
+            this.overdueDays = 0;
+            this.dailyInterestAmount = BigDecimal.ZERO;
+            this.overdueInterestAmount = BigDecimal.ZERO;
+            this.totalWithOverdue = this.totalDueAmount;
+            return;
+        }
+        
+        // Calcular dias em atraso
+        this.overdueDays = (int) java.time.temporal.ChronoUnit.DAYS.between(this.dueDate, LocalDate.now());
+        
+        // VALOR P/DIA = VALOR × (JUROS AO DIA / 100)
+        BigDecimal dailyRateDecimal = this.dailyInterestRate.divide(new BigDecimal("100"), 4, java.math.RoundingMode.HALF_UP);
+        this.dailyInterestAmount = this.totalDueAmount.multiply(dailyRateDecimal).setScale(2, java.math.RoundingMode.HALF_UP);
+        
+        // JUROS DO PERÍODO = VALOR P/DIA × QUANTIDADE DE DIAS EM ATRASO
+        this.overdueInterestAmount = this.dailyInterestAmount.multiply(BigDecimal.valueOf(this.overdueDays)).setScale(2, java.math.RoundingMode.HALF_UP);
+        
+        // JUROS MAIS CAPITAL = VALOR + JUROS DO PERÍODO
+        this.totalWithOverdue = this.totalDueAmount.add(this.overdueInterestAmount);
+    }
+    
+    /**
+     * Calcula juros de atraso até uma data específica
+     */
+    public void calculateOverdueInterestUntil(LocalDate calculateUntilDate) {
+        // Se a parcela está paga, o totalWithOverdue deve ser igual ao valor pago
+        if (this.isPaid) {
+            this.overdueDays = 0;
+            this.dailyInterestAmount = BigDecimal.ZERO;
+            this.overdueInterestAmount = BigDecimal.ZERO;
+            this.totalWithOverdue = this.paidAmount;
+            return;
+        }
+        
+        if (this.dueDate.isAfter(calculateUntilDate)) {
+            this.overdueDays = 0;
+            this.dailyInterestAmount = BigDecimal.ZERO;
+            this.overdueInterestAmount = BigDecimal.ZERO;
+            this.totalWithOverdue = this.totalDueAmount;
+            return;
+        }
+        
+        // Calcular dias em atraso até a data especificada
+        this.overdueDays = (int) java.time.temporal.ChronoUnit.DAYS.between(this.dueDate, calculateUntilDate);
+        
+        if (this.overdueDays <= 0) {
+            this.dailyInterestAmount = BigDecimal.ZERO;
+            this.overdueInterestAmount = BigDecimal.ZERO;
+            this.totalWithOverdue = this.totalDueAmount;
+            return;
+        }
+        
+        // VALOR P/DIA = VALOR × (JUROS AO DIA / 100)
+        BigDecimal dailyRateDecimal = this.dailyInterestRate.divide(new BigDecimal("100"), 4, java.math.RoundingMode.HALF_UP);
+        this.dailyInterestAmount = this.totalDueAmount.multiply(dailyRateDecimal).setScale(2, java.math.RoundingMode.HALF_UP);
+        
+        // JUROS DO PERÍODO = VALOR P/DIA × QUANTIDADE DE DIAS EM ATRASO
+        this.overdueInterestAmount = this.dailyInterestAmount.multiply(BigDecimal.valueOf(this.overdueDays)).setScale(2, java.math.RoundingMode.HALF_UP);
+        
+        // JUROS MAIS CAPITAL = VALOR + JUROS DO PERÍODO
+        this.totalWithOverdue = this.totalDueAmount.add(this.overdueInterestAmount);
+    }
+    
     public void addPayment(BigDecimal amount) {
         this.paidAmount = this.paidAmount.add(amount);
         if (this.paidAmount.compareTo(this.totalDueAmount) >= 0) {
             this.isPaid = true;
             this.paidAt = LocalDateTime.now();
+            // Quando a parcela é paga, o totalWithOverdue deve ser igual ao valor pago
+            this.totalWithOverdue = this.paidAmount;
         }
         this.updatedAt = LocalDateTime.now();
     }

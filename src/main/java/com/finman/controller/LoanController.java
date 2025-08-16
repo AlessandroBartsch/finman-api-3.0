@@ -61,6 +61,63 @@ public class LoanController {
         return ResponseEntity.ok(loans);
     }
     
+    @GetMapping("/filter")
+    public ResponseEntity<List<Loan>> getLoansWithFilter(
+            @RequestParam(required = false) String situation,
+            @RequestParam(required = false, defaultValue = "7") Integer daysUntilDue) {
+        
+        List<Loan> allLoans = loanRepository.findAll();
+        List<Loan> filteredLoans = new ArrayList<>();
+        
+        LocalDate today = LocalDate.now();
+        
+        for (Loan loan : allLoans) {
+            if (situation == null || situation.equals("all")) {
+                filteredLoans.add(loan);
+                continue;
+            }
+            
+            // Buscar parcelas do empréstimo
+            List<LoanInstallment> installments = loanInstallmentRepository.findByLoanId(loan.getId());
+            
+            boolean matchesSituation = false;
+            
+            switch (situation) {
+                case "overdue":
+                    // Verificar se há parcelas vencidas
+                    matchesSituation = installments.stream()
+                        .anyMatch(installment -> !installment.getIsPaid() && 
+                                                installment.getDueDate().isBefore(today));
+                    break;
+                    
+                case "approaching":
+                    // Verificar se há parcelas próximas ao vencimento
+                    LocalDate warningDate = today.plusDays(daysUntilDue);
+                    matchesSituation = installments.stream()
+                        .anyMatch(installment -> !installment.getIsPaid() && 
+                                                !installment.getDueDate().isBefore(today) &&
+                                                !installment.getDueDate().isAfter(warningDate));
+                    break;
+                    
+                case "current":
+                    // Verificar se todas as parcelas estão em dia
+                    matchesSituation = installments.stream()
+                        .allMatch(installment -> installment.getIsPaid() || 
+                                                installment.getDueDate().isAfter(today.plusDays(daysUntilDue)));
+                    break;
+                    
+                default:
+                    matchesSituation = true;
+            }
+            
+            if (matchesSituation) {
+                filteredLoans.add(loan);
+            }
+        }
+        
+        return ResponseEntity.ok(filteredLoans);
+    }
+    
     @PostMapping
     public ResponseEntity<Loan> createLoan(@RequestBody CreateLoanRequest request) {
         // Validar se o usuário existe

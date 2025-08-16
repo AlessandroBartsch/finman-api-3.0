@@ -2,6 +2,7 @@ package com.finman.controller;
 
 import com.finman.model.Loan;
 import com.finman.model.LoanInstallment;
+import com.finman.model.enums.LoanStatus;
 import com.finman.repository.LoanInstallmentRepository;
 import com.finman.repository.LoanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,34 @@ public class LoanInstallmentController {
         return ResponseEntity.ok(installments);
     }
     
+    @GetMapping("/loan/{loanId}/with-overdue-calculation")
+    public ResponseEntity<List<LoanInstallment>> getInstallmentsWithOverdueCalculation(@PathVariable Long loanId) {
+        List<LoanInstallment> installments = installmentRepository.findByLoanId(loanId);
+        
+        // Calcular juros de atraso para cada parcela
+        for (LoanInstallment installment : installments) {
+            installment.calculateOverdueInterest();
+        }
+        
+        return ResponseEntity.ok(installments);
+    }
+    
+    @GetMapping("/loan/{loanId}/with-overdue-calculation-until")
+    public ResponseEntity<List<LoanInstallment>> getInstallmentsWithOverdueCalculationUntil(
+            @PathVariable Long loanId, 
+            @RequestParam String calculateUntilDate) {
+        
+        List<LoanInstallment> installments = installmentRepository.findByLoanId(loanId);
+        LocalDate untilDate = LocalDate.parse(calculateUntilDate);
+        
+        // Calcular juros de atraso para cada parcela até a data especificada
+        for (LoanInstallment installment : installments) {
+            installment.calculateOverdueInterestUntil(untilDate);
+        }
+        
+        return ResponseEntity.ok(installments);
+    }
+    
     @PostMapping("/loan/{loanId}")
     public ResponseEntity<LoanInstallment> createInstallment(@PathVariable Long loanId, @RequestBody LoanInstallment installment) {
         Optional<Loan> loan = loanRepository.findById(loanId);
@@ -65,7 +94,8 @@ public class LoanInstallmentController {
     }
     
     @PutMapping("/{id}/pay")
-    public ResponseEntity<LoanInstallment> payInstallment(@PathVariable Long id, @RequestParam BigDecimal amount) {
+    public ResponseEntity<LoanInstallment> payInstallment(@PathVariable Long id, @RequestParam BigDecimal amount, 
+                                                         @RequestParam(required = false) String comment) {
         Optional<LoanInstallment> installmentOpt = installmentRepository.findById(id);
         
         if (!installmentOpt.isPresent()) {
@@ -73,7 +103,21 @@ public class LoanInstallmentController {
         }
         
         LoanInstallment installment = installmentOpt.get();
+        
+        // Verificar se o empréstimo está ativo
+        if (!installment.getLoan().getStatus().equals(LoanStatus.ACTIVE)) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        
+        // Salvar comentário se fornecido
+        if (comment != null && !comment.trim().isEmpty()) {
+            installment.setNegotiationComment(comment.trim());
+        }
+        
         installment.addPayment(amount);
+        
+        // Recalcular totalWithOverdue para refletir o valor pago
+        installment.calculateOverdueInterest();
         
         LoanInstallment savedInstallment = installmentRepository.save(installment);
         return ResponseEntity.ok(savedInstallment);
@@ -88,9 +132,18 @@ public class LoanInstallmentController {
         }
         
         LoanInstallment installment = installmentOpt.get();
+        
+        // Verificar se o empréstimo está ativo
+        if (!installment.getLoan().getStatus().equals(LoanStatus.ACTIVE)) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        
         installment.setIsPaid(true);
         installment.setPaidAmount(installment.getAmount());
         installment.setPaidDate(LocalDate.now());
+        
+        // Recalcular totalWithOverdue para refletir o valor pago
+        installment.calculateOverdueInterest();
         
         LoanInstallment savedInstallment = installmentRepository.save(installment);
         return ResponseEntity.ok(savedInstallment);
@@ -119,9 +172,42 @@ public class LoanInstallmentController {
         if (installmentUpdate.getInterestAmount() != null) {
             installment.setInterestAmount(installmentUpdate.getInterestAmount());
         }
+        if (installmentUpdate.getDailyInterestRate() != null) {
+            installment.setDailyInterestRate(installmentUpdate.getDailyInterestRate());
+        }
         
         // Recalcular valores derivados
         installment.setTotalDueAmount(installment.getPrincipalAmount().add(installment.getInterestAmount()));
+        
+        // Recalcular juros de atraso
+        installment.calculateOverdueInterest();
+        
+        LoanInstallment savedInstallment = installmentRepository.save(installment);
+        return ResponseEntity.ok(savedInstallment);
+    }
+    
+    @PutMapping("/{id}/update-daily-interest-rate")
+    public ResponseEntity<LoanInstallment> updateDailyInterestRate(
+            @PathVariable Long id, 
+            @RequestParam BigDecimal dailyInterestRate) {
+        
+        Optional<LoanInstallment> installmentOpt = installmentRepository.findById(id);
+        
+        if (!installmentOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        LoanInstallment installment = installmentOpt.get();
+        
+        // Verificar se o empréstimo está ativo
+        if (!installment.getLoan().getStatus().equals(LoanStatus.ACTIVE)) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        
+        installment.setDailyInterestRate(dailyInterestRate);
+        
+        // Recalcular juros de atraso
+        installment.calculateOverdueInterest();
         
         LoanInstallment savedInstallment = installmentRepository.save(installment);
         return ResponseEntity.ok(savedInstallment);
