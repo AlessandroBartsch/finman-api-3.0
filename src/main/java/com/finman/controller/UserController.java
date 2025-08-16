@@ -46,6 +46,10 @@ public class UserController {
             existingUser.setPhoneNumber(userDetails.getPhoneNumber());
             existingUser.setAddress(userDetails.getAddress());
             existingUser.setDateOfBirth(userDetails.getDateOfBirth());
+            existingUser.setKnownByWhom(userDetails.getKnownByWhom());
+            existingUser.setSituation(userDetails.getSituation());
+            existingUser.setDeactivatedDate(userDetails.getDeactivatedDate());
+            existingUser.setDeactivationReason(userDetails.getDeactivationReason());
             
             User updatedUser = userRepository.save(existingUser);
             return ResponseEntity.ok(updatedUser);

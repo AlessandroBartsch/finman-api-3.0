@@ -79,6 +79,8 @@ src/main/java/com/finman/
 - **TransactionType**: DISBURSEMENT, PAYMENT, FEE, PENALTY, REFUND
 - **CashMovementType**: INFLOW, OUTFLOW
 - **CashRegisterSessionStatus**: OPEN, CLOSED
+- **UserSituation**: ACTIVE, DEACTIVATED
+- **DocumentType**: RG, CPF, COMPROVANTE_RESIDENCIA, COMPROVANTE_RENDA, CONTRACHEQUE, EXTRATO_BANCARIO, ASSINATURA_PROMISSORIA, OUTROS
 
 ## 🔧 APIs Disponíveis
 
@@ -93,7 +95,7 @@ src/main/java/com/finman/
 
 O sistema já vem com dados de exemplo carregados automaticamente:
 
-- **4 usuários** (João, Maria, Pedro, Ana)
+- **5 usuários** (João, Maria, Pedro, Ana, Willian) com informações de indicação e situação
 
 ## 🔧 Configurações
 
@@ -120,7 +122,9 @@ curl -X POST http://localhost:8080/api/users \
     "lastName": "Ferreira",
     "phoneNumber": "(11) 99999-5555",
     "address": "Rua das Palmeiras, 456 - São Paulo/SP",
-    "dateOfBirth": "1985-08-20"
+    "dateOfBirth": "1985-08-20",
+    "knownByWhom": "João Silva",
+    "situation": "ACTIVE"
   }'
 ```
 

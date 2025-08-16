@@ -7,5 +7,6 @@ public enum DocumentType {
     COMPROVANTE_RENDA,
     CONTRACHEQUE,
     EXTRATO_BANCARIO,
+    ASSINATURA_PROMISSORIA,
     OUTROS
 }

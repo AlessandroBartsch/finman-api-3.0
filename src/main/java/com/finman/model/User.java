@@ -1,6 +1,7 @@
 package com.finman.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.finman.model.enums.UserSituation;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,7 +33,18 @@ public class User {
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
     
-
+    @Column(name = "known_by_whom")
+    private String knownByWhom;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "situation", nullable = false)
+    private UserSituation situation = UserSituation.ACTIVE;
+    
+    @Column(name = "deactivated_date")
+    private LocalDate deactivatedDate;
+    
+    @Column(name = "deactivation_reason", columnDefinition = "text")
+    private String deactivationReason;
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -126,7 +138,37 @@ public class User {
         this.dateOfBirth = dateOfBirth;
     }
     
-
+    public String getKnownByWhom() {
+        return knownByWhom;
+    }
+    
+    public void setKnownByWhom(String knownByWhom) {
+        this.knownByWhom = knownByWhom;
+    }
+    
+    public UserSituation getSituation() {
+        return situation;
+    }
+    
+    public void setSituation(UserSituation situation) {
+        this.situation = situation;
+    }
+    
+    public LocalDate getDeactivatedDate() {
+        return deactivatedDate;
+    }
+    
+    public void setDeactivatedDate(LocalDate deactivatedDate) {
+        this.deactivatedDate = deactivatedDate;
+    }
+    
+    public String getDeactivationReason() {
+        return deactivationReason;
+    }
+    
+    public void setDeactivationReason(String deactivationReason) {
+        this.deactivationReason = deactivationReason;
+    }
     
     public LocalDateTime getCreatedAt() {
         return createdAt;
