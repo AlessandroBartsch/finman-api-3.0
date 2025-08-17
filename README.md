@@ -129,9 +129,15 @@ src/main/java/com/finman/
 - `GET /api/installments/loan/{loanId}` - Buscar parcelas por empréstimo
 - `GET /api/installments/loan/{loanId}/overdue` - Buscar parcelas em atraso
 - `GET /api/installments/loan/{loanId}/with-overdue-calculation` - Parcelas com cálculo de juros
-- `PUT /api/installments/{id}/pay` - Pagar parcela
+- `PUT /api/installments/{id}/pay` - Pagar parcela (com comentário opcional)
 - `PUT /api/installments/{id}/mark-as-paid` - Marcar parcela como paga
 - `PUT /api/installments/{id}/update-daily-interest-rate` - Atualizar taxa de juros diária
+
+**Funcionalidades Especiais:**
+- **Cálculo automático de juros de atraso** baseado na taxa diária configurável
+- **Rastreamento de excedente** de juros de atraso pagos
+- **Comentários de negociação** para parcelas pagas com atraso
+- **Informações detalhadas** de pagamento com histórico de valores
 
 ### Documentos (`/api/documents`)
 - `GET /api/documents/user/{userId}` - Buscar documentos por usuário
@@ -209,6 +215,8 @@ mvn test
 - ✅ Sistema de empréstimos com cálculo de juros compostos
 - ✅ Controllers de empréstimos implementados
 - ✅ Sistema de parcelas com cálculo de juros de atraso
+- ✅ Rastreamento de excedente de juros de atraso pagos
+- ✅ Comentários de negociação para parcelas
 - ✅ Sistema de documentos com upload e download
 - ✅ API de dashboard com estatísticas
 - ✅ Validações básicas implementadas

@@ -70,6 +70,9 @@ public class LoanInstallment {
     @Column(name = "negotiation_comment", columnDefinition = "text")
     private String negotiationComment;
     
+    @Column(name = "overdue_interest_paid", precision = 18, scale = 2)
+    private BigDecimal overdueInterestPaid = BigDecimal.ZERO;
+    
     // Relacionamentos
     @OneToMany(mappedBy = "installment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
@@ -237,6 +240,14 @@ public class LoanInstallment {
         this.negotiationComment = negotiationComment;
     }
     
+    public BigDecimal getOverdueInterestPaid() {
+        return overdueInterestPaid;
+    }
+    
+    public void setOverdueInterestPaid(BigDecimal overdueInterestPaid) {
+        this.overdueInterestPaid = overdueInterestPaid;
+    }
+    
     public List<Transaction> getTransactions() {
         return transactions;
     }
@@ -247,6 +258,16 @@ public class LoanInstallment {
     
     // Métodos auxiliares
     public BigDecimal getRemainingAmount() {
+        // Se a parcela está paga, não há valor restante
+        if (this.isPaid) {
+            return BigDecimal.ZERO;
+        }
+        
+        // Se o valor pago excede o total devido, não há valor restante
+        if (this.paidAmount.compareTo(this.totalDueAmount) >= 0) {
+            return BigDecimal.ZERO;
+        }
+        
         return totalDueAmount.subtract(paidAmount);
     }
     
@@ -336,6 +357,14 @@ public class LoanInstallment {
     
     public void addPayment(BigDecimal amount) {
         this.paidAmount = this.paidAmount.add(amount);
+        
+        // Calcular o excedente de juros de atraso pagos
+        if (this.paidAmount.compareTo(this.totalDueAmount) > 0) {
+            // Se o valor pago excede o total devido, calcular o excedente
+            BigDecimal excess = this.paidAmount.subtract(this.totalDueAmount);
+            this.overdueInterestPaid = this.overdueInterestPaid.add(excess);
+        }
+        
         if (this.paidAmount.compareTo(this.totalDueAmount) >= 0) {
             this.isPaid = true;
             this.paidAt = LocalDateTime.now();
